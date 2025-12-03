@@ -19,16 +19,23 @@ mkdir -p "$VAR_MANIFEST_DIR"
 
 # Copy user manifests from /etc to /var/lib (where RKE2 actually reads them)
 # This ensures manifests are available even if added after RKE2 startup
+USER_MANIFESTS=()
 if [ -d "$ETC_MANIFEST_DIR" ]; then
   echo "Copying user manifests from $ETC_MANIFEST_DIR to $VAR_MANIFEST_DIR"
   for manifest in "$ETC_MANIFEST_DIR"/*.yaml "$ETC_MANIFEST_DIR"/*.yml; do
+    # Handle case where glob doesn't match
+    [ -e "$manifest" ] || continue
+
     if [ -f "$manifest" ]; then
+      manifest_name=$(basename "$manifest")
       # Skip HelmChartConfig files - RKE2 handles these automatically from /etc
       if grep -q "kind: HelmChartConfig" "$manifest" 2>/dev/null; then
+        echo "Skipping HelmChartConfig during copy: $manifest_name"
         continue
       fi
       cp -f "$manifest" "$VAR_MANIFEST_DIR/"
-      echo "Copied: $(basename "$manifest")"
+      USER_MANIFESTS+=("$VAR_MANIFEST_DIR/$manifest_name")
+      echo "Copied: $manifest_name"
     fi
   done
 fi
@@ -82,30 +89,24 @@ if ! "$KUBECTL" cluster-info &>/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Kubernetes API is ready, applying manifests from $VAR_MANIFEST_DIR"
+echo "Kubernetes API is ready, applying user manifests"
 
-# Apply all user manifests (skip RKE2 built-in manifests and HelmChartConfig files)
-for manifest in "$VAR_MANIFEST_DIR"/*.yaml "$VAR_MANIFEST_DIR"/*.yml; do
-  if [ -f "$manifest" ]; then
-    # Skip RKE2 built-in manifests (they start with rke2-)
-    if [[ "$(basename "$manifest")" == rke2-* ]]; then
-      echo "Skipping RKE2 built-in manifest: $(basename "$manifest")"
-      continue
+# Apply user manifests we copied (this ensures we apply them even if RKE2 built-ins are in the same dir)
+if [ ${#USER_MANIFESTS[@]} -gt 0 ]; then
+  echo "Applying ${#USER_MANIFESTS[@]} user manifest(s):"
+  for manifest in "${USER_MANIFESTS[@]}"; do
+    if [ -f "$manifest" ]; then
+      manifest_name=$(basename "$manifest")
+      echo "Applying manifest: $manifest_name"
+      if "$KUBECTL" apply -f "$manifest" 2>&1; then
+        echo "Successfully applied: $manifest_name"
+      else
+        echo "Warning: Failed to apply $manifest_name (check errors above)"
+      fi
     fi
-
-    # Skip HelmChartConfig files - RKE2 handles these automatically
-    if grep -q "kind: HelmChartConfig" "$manifest" 2>/dev/null; then
-      echo "Skipping HelmChartConfig: $(basename "$manifest") (handled by RKE2)"
-      continue
-    fi
-
-    echo "Applying manifest: $(basename "$manifest")"
-    if "$KUBECTL" apply -f "$manifest"; then
-      echo "Successfully applied: $(basename "$manifest")"
-    else
-      echo "Warning: Failed to apply $manifest (may already exist)"
-    fi
-  fi
-done
+  done
+else
+  echo "No user manifests found to apply"
+fi
 
 echo "Manifest application complete"
