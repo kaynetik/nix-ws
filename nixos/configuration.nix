@@ -1,5 +1,5 @@
 # Initial config was generated with nixos-generate-config --root /mnt during installation phase.
-{ config, lib, pkgs, ... }:
+{ inputs, config, lib, pkgs, ... }:
 
 {
   imports =
@@ -22,7 +22,13 @@
     device = "nodev";
     efiSupport = true;
     useOSProber = true;
-    theme = pkgs.grub2-themes.stylish;
+  };
+
+  boot.loader.grub2-theme = {
+    enable = true;
+    theme = "stylish";
+    screen = "2k";
+    footer = true;
   };
 
   networking.hostName = "ksvhost"; # Define your hostname.
