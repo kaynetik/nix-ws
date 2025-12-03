@@ -8,4 +8,21 @@
     });
     mode = "0644";
   };
+
+  # Service to apply manifests after RKE2 cluster is ready
+  # RKE2 only processes manifests at startup, so this ensures manifests
+  # are applied even if they're added after RKE2 starts
+  systemd.services.rke2-apply-manifests = {
+    description = "Apply RKE2 manifests after cluster is ready";
+    after = [ "rke2-server.service" ];
+    wants = [ "rke2-server.service" ];
+    wantedBy = [ "multi-user.target" ];
+    serviceConfig = {
+      Type = "oneshot";
+      RemainAfterExit = true;
+      User = "root";
+    };
+    path = with pkgs; [ coreutils gnugrep ];
+    script = builtins.readFile ./scripts/rke2-apply-manifests.sh;
+  };
 }
