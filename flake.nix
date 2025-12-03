@@ -15,13 +15,19 @@
       let
         baseName = baseNameOf path;
         relPath = nixpkgs.lib.removePrefix (toString ./. + "/") (toString path);
+        isNixosDir = relPath == "nixos" || baseName == "nixos";
+        isInNixosDir = nixpkgs.lib.hasPrefix "nixos/" relPath;
       in
-        # Always include secrets.nix (bypasses gitignore)
-        baseName == "secrets.nix" ||
-        # Include all files in nixos directory
-        (nixpkgs.lib.hasPrefix "nixos/" relPath && baseName != ".git") ||
-        # Include flake files
-        baseName == "flake.nix" || baseName == "flake.lock"
+        if type == "directory" then
+          # Include root directory, nixos directory, and all its subdirectories
+          relPath == "" || isNixosDir || isInNixosDir
+        else
+          # Always include secrets.nix (bypasses gitignore)
+          baseName == "secrets.nix" ||
+          # Include all files in nixos directory
+          (isInNixosDir && baseName != ".git") ||
+          # Include flake files
+          baseName == "flake.nix" || baseName == "flake.lock"
     ) ./.;
   in {
     nixosConfigurations.ksvhost = nixpkgs.lib.nixosSystem {
