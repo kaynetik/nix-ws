@@ -22,6 +22,7 @@
     device = "nodev";
     efiSupport = true;
     useOSProber = true;
+    theme = pkgs.grub2-themes.stylish;
   };
 
   networking.hostName = "ksvhost"; # Define your hostname.
