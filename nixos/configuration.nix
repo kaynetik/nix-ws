@@ -7,6 +7,8 @@
       ./hardware-configuration.nix
       ./ssh-config.nix
       ./rke2-config.nix
+      ./rke2-traefik.nix
+      ./rke2-manifests.nix
     ];
 
   # Use the systemd-boot EFI bbloot loader.

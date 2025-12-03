@@ -1,0 +1,37 @@
+# Expose Traefik on host ports (single-node cluster)
+ports:
+  web:
+    port: 8000
+    hostPort: 80
+    exposedPort: 80
+  websecure:
+    port: 8443
+    hostPort: 443
+    exposedPort: 443
+
+# Service type (LoadBalancer for single node is fine)
+service:
+  type: LoadBalancer
+
+# Enable dashboard (optional, for monitoring)
+dashboard:
+  enabled: true
+
+# Resource limits
+resources:
+  requests:
+    cpu: "100m"
+    memory: "50Mi"
+  limits:
+    cpu: "300m"
+    memory: "150Mi"
+
+# Enable access logs (optional)
+logs:
+  access:
+    enabled: true
+
+# IngressClass configuration
+ingressClass:
+  enabled: true
+  isDefaultClass: true

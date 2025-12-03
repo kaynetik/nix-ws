@@ -7,3 +7,4 @@ result-*
 
 # Nix garbage collection
 .direnv/
+.validation/*
