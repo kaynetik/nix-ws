@@ -64,7 +64,7 @@
   # Generate RKE2 config.yaml declaratively
   # Token is read from secrets file
   environment.etc."rancher/rke2/config.yaml" = let
-    # Read token from secrets file (gitignored)
+    # Read token from secrets file (gitignored, but included in flake via filterSource)
     # Fallback to environment variable if file doesn't exist (for CI/CD)
     rke2Token = let
       secretsFile = ./secrets.nix;
