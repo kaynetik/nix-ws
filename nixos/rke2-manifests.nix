@@ -15,14 +15,16 @@
   systemd.services.rke2-apply-manifests = {
     description = "Apply RKE2 manifests after cluster is ready";
     after = [ "rke2-server.service" ];
-    wants = [ "rke2-server.service" ];
+    requires = [ "rke2-server.service" ];
     wantedBy = [ "multi-user.target" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
       User = "root";
+      Restart = "on-failure";
+      RestartSec = "30s";
     };
-    path = with pkgs; [ coreutils gnugrep ];
+    path = with pkgs; [ coreutils gnugrep systemd ];
     script = builtins.readFile ./scripts/rke2-apply-manifests.sh;
   };
 }

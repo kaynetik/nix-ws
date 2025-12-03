@@ -29,17 +29,35 @@ if [ -d "$ETC_MANIFEST_DIR" ]; then
   done
 fi
 
-# Wait for kubectl to be available (max 120 seconds)
-timeout=120
+# Wait for RKE2 service to be active first
+echo "Waiting for RKE2 service to be active..."
+timeout=60
 elapsed=0
-while ! "$KUBECTL" cluster-info &>/dev/null && [ $elapsed -lt $timeout ]; do
+while ! systemctl is-active --quiet rke2-server.service && [ $elapsed -lt $timeout ]; do
   sleep 2
   elapsed=$((elapsed + 2))
 done
 
+if ! systemctl is-active --quiet rke2-server.service; then
+  echo "Error: RKE2 service is not active after $timeout seconds"
+  exit 1
+fi
+
+# Wait for kubectl to be available (max 180 seconds - RKE2 can take time to fully start)
+echo "Waiting for Kubernetes API to be ready..."
+timeout=180
+elapsed=0
+while ! "$KUBECTL" cluster-info &>/dev/null && [ $elapsed -lt $timeout ]; do
+  sleep 3
+  elapsed=$((elapsed + 3))
+  if [ $((elapsed % 30)) -eq 0 ]; then
+    echo "Still waiting for API... (${elapsed}s/${timeout}s)"
+  fi
+done
+
 if ! "$KUBECTL" cluster-info &>/dev/null; then
-  echo "Warning: Kubernetes API not available after $timeout seconds, skipping manifest application"
-  exit 0
+  echo "Error: Kubernetes API not available after $timeout seconds"
+  exit 1
 fi
 
 echo "Kubernetes API is ready, applying manifests from $VAR_MANIFEST_DIR"
