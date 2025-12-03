@@ -23,12 +23,10 @@ cp ~/nixos-config/nixos/secrets.nix.example ~/nixos-config/nixos/secrets.nix
 nano ~/nixos-config/nixos/secrets.nix  # Fill in secrets
 chmod 600 ~/nixos-config/nixos/secrets.nix
 
-# Enable flakes (if not already enabled)
-mkdir -p ~/.config/nix
-echo "experimental-features = nix-command flakes" >> ~/.config/nix/nix.conf
-
-# Test and apply (flake-based)
-sudo nixos-rebuild switch --flake ~/nixos-config#ksvhost
+# Test and apply
+sudo nixos-rebuild dry-run
+sudo nixos-rebuild test  # Test without switching (deleted on reboot)
+sudo nixos-rebuild switch
 ```
 
 ## Workflow
@@ -42,7 +40,7 @@ git push
 
 **NixOS system:**
 ```bash
-cd ~/nixos-config && git pull && sudo nixos-rebuild switch --flake .#ksvhost
+cd ~/nixos-config && git pull && sudo nixos-rebuild switch
 ```
 
 **Note:** If you get permission errors, fix ownership:
@@ -59,7 +57,6 @@ git config --global --add safe.directory ~/nixos-config
 
 ## Files
 
-- `flake.nix` - Flake configuration (defines inputs and system)
 - `configuration.nix` - Main config (imports others)
 - `hardware-configuration.nix` - Hardware settings (never change this manually)
 - `ssh-config.nix` - SSH hardening (port 2337, key-only)
