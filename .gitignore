@@ -1,0 +1,9 @@
+# NixOS Secrets - Never commit these files
+nixos/secrets.nix
+
+# Nix build artifacts
+result
+result-*
+
+# Nix garbage collection
+.direnv/

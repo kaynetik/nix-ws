@@ -1,0 +1,56 @@
+repos:
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: check-added-large-files
+        args: ["--maxkb=1000"]
+      - id: check-yaml
+      - id: check-json
+      - id: check-toml
+      - id: mixed-line-ending
+        args: ['--fix=lf']
+      - id: detect-private-key
+        exclude: |
+          (?x)^(
+            nixos/secrets\.nix\.example|
+            .*\.pub$
+          )
+
+  # Prevent committing secrets.nix
+  - repo: local
+    hooks:
+      - id: prevent-secrets-commit
+        name: Prevent committing secrets.nix
+        entry: .pre-commit-hooks/prevent-secrets.sh
+        language: system
+        pass_filenames: false
+
+  # Nix syntax check (works on macOS with Nix installed)
+  - repo: local
+    hooks:
+      - id: nix-syntax-check
+        name: Check Nix syntax
+        entry: .pre-commit-hooks/nix-syntax-check.sh
+        language: system
+        files: ^nixos/.*\.nix$
+        pass_filenames: true
+
+  # Security scanning
+  - repo: https://github.com/bridgecrewio/checkov.git
+    rev: 3.2.495
+    hooks:
+      - id: checkov
+        args: [-d ., --quiet, --compact]
+        files: ^nixos/.*\.nix$
+
+  # Conventional commits
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.3.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
