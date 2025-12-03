@@ -1,47 +1,6 @@
 { config, pkgs, ... }:
 
 {
-  # RKE2 Kubernetes Cluster - Declarative Configuration
-  # Generate RKE2 config.yaml declaratively
-  # Token is read from secrets file
-  environment.etc."rancher/rke2/config.yaml" = let
-    # Read token from secrets file (gitignored)
-    # Fallback to environment variable if file doesn't exist (for CI/CD)
-    rke2Token = let
-      secretsFile = ./secrets.nix;
-      envToken = builtins.getEnv "RKE2_TOKEN";
-      secrets = builtins.tryEval (import secretsFile);
-    in
-      if secrets.success
-      then secrets.value.rke2Token
-      else if envToken != ""
-      then envToken
-      else throw "RKE2 token not found. Either create nixos/secrets.nix or set RKE2_TOKEN environment variable.";
-
-    # Read IP address from environment variable first, then secrets file
-    # No default fallback - must be explicitly set
-    rke2IP = let
-      secretsFile = ./secrets.nix;
-      envIP = builtins.getEnv "RKE2_IP";
-      secrets = builtins.tryEval (import secretsFile);
-    in
-      if envIP != ""
-      then envIP
-      else if secrets.success
-      then secrets.value.rke2IP or (throw "RKE2_IP not found. Either set RKE2_IP environment variable or add rke2IP to nixos/secrets.nix")
-      else throw "RKE2_IP not found. Either set RKE2_IP environment variable or create nixos/secrets.nix with rke2IP";
-  in {
-    text = ''
-      # RKE2 Cluster Configuration (Declaratively Managed)
-      token: "${rke2Token}"
-      node-name: "ksvhost"
-      tls-san:
-        - "${rke2IP}"
-        - "ksvhost"
-    '';
-    mode = "0600";
-  };
-
   services.rke2 = {
     enable = true;
     role = "server";  # Change to "agent" for worker nodes
@@ -99,6 +58,103 @@
   programs.bash.shellAliases = {
     k = "/var/lib/rancher/rke2/bin/kubectl";
     kubectl = "/var/lib/rancher/rke2/bin/kubectl";
+  };
+
+  # RKE2 Kubernetes Cluster - Declarative Configuration
+  # Generate RKE2 config.yaml declaratively
+  # Token is read from secrets file
+  environment.etc."rancher/rke2/config.yaml" = let
+    # Read token from secrets file (gitignored)
+    # Fallback to environment variable if file doesn't exist (for CI/CD)
+    rke2Token = let
+      secretsFile = ./secrets.nix;
+      envToken = builtins.getEnv "RKE2_TOKEN";
+      secrets = builtins.tryEval (import secretsFile);
+    in
+      if secrets.success
+      then secrets.value.rke2Token
+      else if envToken != ""
+      then envToken
+      else throw "RKE2 token not found. Either create nixos/secrets.nix or set RKE2_TOKEN environment variable.";
+
+    # Read IP address from environment variable first, then secrets file
+    # No default fallback - must be explicitly set
+    rke2IP = let
+      secretsFile = ./secrets.nix;
+      envIP = builtins.getEnv "RKE2_IP";
+      secrets = builtins.tryEval (import secretsFile);
+    in
+      if envIP != ""
+      then envIP
+      else if secrets.success
+      then secrets.value.rke2IP or (throw "RKE2_IP not found. Either set RKE2_IP environment variable or add rke2IP to nixos/secrets.nix")
+      else throw "RKE2_IP not found. Either set RKE2_IP environment variable or create nixos/secrets.nix with rke2IP";
+  in {
+    text = ''
+      # RKE2 Cluster Configuration (Declaratively Managed)
+      token: "${rke2Token}"
+      node-name: "ksvhost"
+      tls-san:
+        - "${rke2IP}"
+        - "ksvhost"
+
+      # Disable nginx, enable Traefik
+      disable:
+        - rke2-ingress-nginx
+      ingress-controller: traefik
+    '';
+    mode = "0600";
+  };
+
+  # Traefik configuration via HelmChartConfig
+  environment.etc."rancher/rke2/server/manifests/rke2-traefik-config.yaml" = {
+    text = ''
+      apiVersion: helm.cattle.io/v1
+      kind: HelmChartConfig
+      metadata:
+        name: rke2-traefik
+        namespace: kube-system
+      spec:
+        valuesContent: |-
+          # Expose Traefik on host ports (single-node cluster)
+          ports:
+            web:
+              port: 8000
+              hostPort: 80
+              exposedPort: 80
+            websecure:
+              port: 8443
+              hostPort: 443
+              exposedPort: 443
+
+          # Service type (LoadBalancer for single node is fine)
+          service:
+            type: LoadBalancer
+
+          # Enable dashboard (optional, for monitoring)
+          dashboard:
+            enabled: true
+
+          # Resource limits
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "50Mi"
+            limits:
+              cpu: "300m"
+              memory: "150Mi"
+
+          # Enable access logs (optional)
+          logs:
+            access:
+              enabled: true
+
+          # IngressClass configuration
+          ingressClass:
+            enabled: true
+            isDefaultClass: true
+    '';
+    mode = "0644";
   };
 
   # Service to sync kubeconfig to user's home directory
@@ -183,5 +239,4 @@
       fi
     '';
   };
-
 }
