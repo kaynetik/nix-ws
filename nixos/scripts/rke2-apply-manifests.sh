@@ -9,6 +9,10 @@ set -euo pipefail
 ETC_MANIFEST_DIR="/etc/rancher/rke2/server/manifests"
 VAR_MANIFEST_DIR="/var/lib/rancher/rke2/server/manifests"
 KUBECTL="/var/lib/rancher/rke2/bin/kubectl"
+KUBECONFIG="/etc/rancher/rke2/rke2.yaml"
+
+# Export KUBECONFIG for kubectl (systemd runs as root, needs system kubeconfig)
+export KUBECONFIG
 
 # Ensure /var/lib manifest directory exists
 mkdir -p "$VAR_MANIFEST_DIR"
@@ -43,20 +47,38 @@ if ! systemctl is-active --quiet rke2-server.service; then
   exit 1
 fi
 
+# Wait for kubeconfig file to exist first
+echo "Waiting for RKE2 kubeconfig to be created..."
+timeout=60
+elapsed=0
+while [ ! -f "$KUBECONFIG" ] && [ $elapsed -lt $timeout ]; do
+  sleep 2
+  elapsed=$((elapsed + 2))
+done
+
+if [ ! -f "$KUBECONFIG" ]; then
+  echo "Error: Kubeconfig not found at $KUBECONFIG after $timeout seconds"
+  exit 1
+fi
+
 # Wait for kubectl to be available (max 180 seconds - RKE2 can take time to fully start)
 echo "Waiting for Kubernetes API to be ready..."
 timeout=180
 elapsed=0
-while ! "$KUBECTL" cluster-info &>/dev/null && [ $elapsed -lt $timeout ]; do
+while ! "$KUBECTL" cluster-info &>/dev/null 2>&1 && [ $elapsed -lt $timeout ]; do
   sleep 3
   elapsed=$((elapsed + 3))
   if [ $((elapsed % 30)) -eq 0 ]; then
     echo "Still waiting for API... (${elapsed}s/${timeout}s)"
+    # Show what error we're getting for debugging
+    "$KUBECTL" cluster-info 2>&1 | head -1 || true
   fi
 done
 
-if ! "$KUBECTL" cluster-info &>/dev/null; then
+if ! "$KUBECTL" cluster-info &>/dev/null 2>&1; then
   echo "Error: Kubernetes API not available after $timeout seconds"
+  echo "Last error:"
+  "$KUBECTL" cluster-info 2>&1 || true
   exit 1
 fi
 
