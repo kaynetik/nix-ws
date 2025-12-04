@@ -8,15 +8,8 @@
   # Enable ZFS support
   boot.supportedFilesystems = [ "zfs" ];
 
-  # Explicitly load ZFS kernel modules at boot
-  boot.kernelModules = [ "zfs" ];
-
-  # Include ZFS kernel module package
-  boot.extraModulePackages = with config.boot.kernelPackages; [ zfs ];
-
   # Don't force import root pool (we're not using ZFS for root)
   boot.zfs.forceImportRoot = false;
-
   # Auto-import the ksvpool on boot
   boot.zfs.extraPools = [ "ksvpool" ];
 
