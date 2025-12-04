@@ -8,6 +8,12 @@
   # Enable ZFS support
   boot.supportedFilesystems = [ "zfs" ];
 
+  # Explicitly load ZFS kernel modules at boot
+  boot.kernelModules = [ "zfs" ];
+
+  # Include ZFS kernel module package
+  boot.extraModulePackages = with config.boot.kernelPackages; [ zfs ];
+
   # Don't force import root pool (we're not using ZFS for root)
   boot.zfs.forceImportRoot = false;
 
@@ -38,15 +44,19 @@
   systemd.services.zfs-setup = {
     description = "Set up ZFS pool and datasets (runs once)";
     wantedBy = [ "multi-user.target" ];
-    after = [ "zfs-import-cache.service" ];
-    wants = [ "zfs-import-cache.service" ];
+    # Wait for ZFS modules to be loaded and import cache to be ready
+    after = [ "zfs-import-cache.service" "systemd-modules-load.service" ];
+    wants = [ "zfs-import-cache.service" "systemd-modules-load.service" ];
     serviceConfig = {
       Type = "oneshot";
       RemainAfterExit = true;
       User = "root";
+      # Ensure ZFS modules are loaded before running the script
+      ExecStartPre = "${pkgs.kmod}/bin/modprobe zfs";
     };
     path = with pkgs; [
       zfs
+      kmod  # for modprobe
       coreutils
     ];
     script = builtins.readFile ./scripts/zfs-setup.sh;
