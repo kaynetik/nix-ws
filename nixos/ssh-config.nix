@@ -1,9 +1,9 @@
 { config, pkgs, ... }:
 
 {
-  #--====
+  #--
   # SSH Hardening Configuration
-  #--====
+  #--
 
   services.openssh = {
     enable = true;
@@ -149,9 +149,9 @@
     # '';
   };
 
-  #--====
+  #--
   # Firewall Configuration
-  #--====
+  #--
 
   networking.firewall = {
     enable = true;
