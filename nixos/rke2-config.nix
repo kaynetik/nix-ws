@@ -94,6 +94,8 @@
       # RKE2 Cluster Configuration (Declaratively Managed)
       token: "${rke2Token}"
       node-name: "ksvhost"
+      node-ip: "${rke2IP}"
+      advertise-address: "${rke2IP}"
       tls-san:
         - "${rke2IP}"
         - "ksvhost"
