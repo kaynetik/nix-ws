@@ -63,9 +63,13 @@
     git
     croc
     rustup
+    go
     gcc
     gnumake
     binutils
+    pkg-config
+    openssl
+    openssl.dev
   ];
 
   # Some programs need SUID wrappers, can be configured further or are started in user sessions.
